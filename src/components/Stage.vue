@@ -10,7 +10,8 @@
         </div>
 
         <div class="flex flex-col flex-grow h-min gap-1 p-1 max-w-12 bg-white rounded-[10px] m-3 pointer-events-auto">
-          <div class="menu-item"><img src="../assets/image-plus.svg" alt></div>
+          <div class="menu-item" @click="onSaveScene"><img src="../assets/image-plus.svg" alt="Save"></div>
+          <div class="menu-item" @click="onLoadScene"><img src="../assets/image-plus.svg" alt="Load"></div>
         </div>
       </div>
     </div>
@@ -89,6 +90,25 @@ export default {
 
   },
   methods: {
+    onSaveScene() {
+      // Сериализация данных
+      const sceneData = JSON.stringify(this.items);
+      // Сохранение в локальное хранилище
+      localStorage.setItem('sceneData', sceneData);
+      alert('Сцена сохранена!');
+    },
+    onLoadScene() {
+      // Загрузка из локального хранилища
+      const sceneData = localStorage.getItem('sceneData');
+      if (sceneData) {
+        // Десериализация данных
+        this.items = JSON.parse(sceneData);
+        alert('Сцена загружена!');
+      } else {
+        alert('Нет сохраненной сцены!');
+      }
+    },
+
     onImageAdd() {
       console.log("onImageAdd")
     },

@@ -1,9 +1,9 @@
 <script setup>
-import Stage from "./components/Stage.vue";
+import StageV2 from "./components/StageV2.vue";
 </script>
 
 <template>
-  <Stage />
+  <StageV2 />
 </template>
 
 <style scoped>
