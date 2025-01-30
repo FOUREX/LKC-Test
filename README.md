@@ -10,3 +10,5 @@ After installation, edit config in [base.js](src/api/base.js)
 npm install
 npm run dev
 ```
+
+![img.png](assets/img.png)
