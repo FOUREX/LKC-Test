@@ -14,47 +14,29 @@ export default {
         scaleX: 1,
         scaleY: 1,
       },
-      items: {
-        rectangles: [
-          {
-            rotation: 0,
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 100,
-            scaleX: 1,
-            scaleY: 1,
-            fill: 'red',
-            name: 'rect1',
-            draggable: true,
-          },
-          {
-            rotation: 0,
-            x: 150,
-            y: 150,
-            width: 100,
-            height: 100,
-            scaleX: 1,
-            scaleY: 1,
-            fill: 'green',
-            name: 'rect2',
-            draggable: true,
-          },
-        ],
-        images: [
-
-        ]
-      },
-
-      selectedShapeName: ''
-    };
+      layers: [],
+      currentLayer: undefined,
+      transformer: undefined,
+      selectedNode: null
+    }
   },
 
   mounted() {
     this.stage = this.$refs.stage.getStage()
+    this.transformer = new Konva.Transformer()
+
+    const layer = new Konva.Layer()
+
+    layer.add(this.transformer)
+    this.layers.push(layer)
+
+    this.currentLayer = this.layers[0]
+
+    this.stage.add(this.currentLayer)
 
     window.addEventListener("resize", this.onWindowResize)
     this.stage.on("wheel", this.onMouseScroll)
+    this.stage.on('click tap', this.onClick);
   },
 
   beforeUnmount() {
@@ -65,16 +47,22 @@ export default {
   methods: {
     serializeScene() {
       console.log(JSON.stringify(this.items))
-      return JSON.stringify(this.items)
+      return JSON.stringify(this.items);
     },
 
     deserializeScene(data) {
-      const newItems = JSON.parse(data)
-      console.log(data)
-      console.log(this.serializeScene())
+      this.items = JSON.parse(data)
+    },
 
-      // VUE не бачить коли this.items оновлюється цілком
-      this.items = newItems
+    getContext() {
+      return this.layers.flatMap(layer =>
+        layer.getChildren()
+          .filter(child => child instanceof Konva.Text)
+          .map((child, index) => ({
+            role: `Note ${index + 1}`,
+            content: child.attrs.text
+          }))
+      )
     },
 
     onImageAdd() {
@@ -82,22 +70,39 @@ export default {
     },
 
     addRectangle() {
-      const newId = this.items.rectangles.length + 1;
-      this.items.rectangles.push({
-        rotation: 0,
-        x: 100,
-        y: 100,
+      console.log("addRectangle")
+
+      const rect = new Konva.Rect({
+        x: 50,
+        y: 60,
         width: 100,
         height: 100,
-        scaleX: 1,
-        scaleY: 1,
         fill: Konva.Util.getRandomColor(),
-        name: `rect${newId}`,
         draggable: true,
-      });
+      })
+
+      this.currentLayer.add(rect)
+    },
+
+    addNote() {
+      const text = new Konva.Text({
+        x: 20,
+        y: 60,
+        text: "Кря!",
+        fontSize: 24,
+        fontFamily: 'Calibri',
+        fill: 'red',
+        padding: 5,
+        align: 'center',
+        draggable: true,
+      })
+
+      this.currentLayer.add(text)
     },
 
     onMouseScroll(e) {
+      this.getContext()
+
       e.evt.preventDefault();
 
       const stage = this.stage;
@@ -127,79 +132,30 @@ export default {
     },
 
     onWindowResize() {
-      this.stage.width(window.innerWidth);
-      this.stage.height(window.innerHeight);
+      this.stage.width(window.innerWidth)
+      this.stage.height(window.innerHeight)
     },
 
-    handleTransformEnd(e) {
-      // Находим индекс прямоугольника в массиве
-      const rectIndex = this.items.rectangles.findIndex(
-          (r) => r.name === this.selectedShapeName
-      );
-
-      if (rectIndex !== -1) {
-        // Создаем новый массив прямоугольников с обновленным элементом
-        const updatedRectangles = [...this.items.rectangles];
-        updatedRectangles[rectIndex] = {
-          ...updatedRectangles[rectIndex],
-          x: e.target.x(),
-          y: e.target.y(),
-          rotation: e.target.rotation(),
-          scaleX: e.target.scaleX(),
-          scaleY: e.target.scaleY(),
-          fill: Konva.Util.getRandomColor()
-        };
-
-        // Обновляем состояние реактивно
-        this.items = {
-          ...this.items,
-          rectangles: updatedRectangles
-        };
-      }
-    },
-    handleStageMouseDown(e) {
-      // clicked on stage - clear selection
-      if (e.target === e.target.getStage()) {
-        this.selectedShapeName = '';
-        this.updateTransformer();
+    onClick(e) {
+      if (e.target instanceof Konva.Stage) {
+        this.transformer.nodes([]);
+        this.selectedNode = null;
         return;
       }
 
-      // clicked on transformer - do nothing
-      const clickedOnTransformer =
-          e.target.getParent().className === 'Transformer';
-      if (clickedOnTransformer) {
+      if (e.target.getParent()?.className === 'Transformer') {
         return;
       }
 
-      // find clicked rect by its name
-      const name = e.target.name();
-      const rect = this.items.rectangles.find((r) => r.name === name);
-      if (rect) {
-        this.selectedShapeName = name;
-      } else {
-        this.selectedShapeName = '';
-      }
-      this.updateTransformer();
+      this.selectedNode = e.target;
+      this.transformer.nodes([e.target]);
+      this.onNodeSelected()
     },
-    updateTransformer() {
-      // here we need to manually attach or detach Transformer node
-      const transformerNode = this.$refs.transformer.getNode();
-      const stage = transformerNode.getStage();
-      const { selectedShapeName } = this;
 
-      const selectedNode = stage.findOne('.' + selectedShapeName);
-      // do nothing if selected node is already attached
-      if (selectedNode === transformerNode.node()) {
-        return;
-      }
-
-      if (selectedNode) {
-        // attach to another node
-        transformerNode.nodes([selectedNode]);
-      } else {
-        // remove transformer
-        transformerNode.nodes([]);
+    onNodeSelected() {
+      if (this.selectedNode instanceof Konva.Text) {
+        const text = prompt("Text:")
+        this.selectedNode.text(text)
       }
     },
   },
@@ -210,20 +166,7 @@ export default {
   <v-stage
       ref="stage"
       :config="stageConfig"
-      @mousedown="handleStageMouseDown"
-      @touchstart="handleStageMouseDown"
-  >
-    <v-layer ref="layer">
-      <v-rect
-          v-for="item in items.rectangles"
-          :key="item.id"
-          :config="item"
-          @transformend="handleTransformEnd"
-      >Pizdsdddddddddddddddec
-      </v-rect>
-      <v-transformer ref="transformer"/>
-    </v-layer>
-  </v-stage>
+  />
 </template>
 
 <style scoped>
